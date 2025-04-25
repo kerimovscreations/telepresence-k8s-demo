@@ -8,7 +8,7 @@ By applying this technology developer can decrease the feedback loop during serv
 
 ## Architecture
 
-![Todo API Architecture](images/architecture.svg)
+![Telepresence architecture](images/architecture.svg)
 
 [Source](https://telepresence.io/docs/reference/architecture)
 
@@ -107,6 +107,10 @@ kubectl get pods -l app=todo-api
 kubectl get service todo-api-service
 ```
 
+Example: Running containers
+
+![Running containers](images/running_containers.png)
+
 ## API Endpoints
 
 - `GET /todos` - List all todo items
@@ -124,12 +128,52 @@ Example POST request:
 1. Connect to your cluster with `telepresence connect`.
 
 2. Replace a running Kubernetes pod with your local development environment (only requests to 82 port will be routed to local instance):
-
 ```bash
 telepresence intercept todo-api --port 8082:82 --env-file ./todo-api-intercept.env --replace
 ```
+More information at [official docs](https://telepresence.io/docs/howtos/engage#intercept-your-application).
 
-Please refer to the [Telepresence's official documentation](https://telepresence.io/docs/howtos/engage#intercept-your-application) for additional information.
+3. Modify local service for testing
+![Modified local service](images/modified_source.png)
+
+4. Run local service (will be communicate with kubernetes for interception)
+```bash
+go run main.go
+    2025/04/23 10:57:52 Successfully connected to PostgreSQL
+    2025/04/23 10:57:52 Server starting on port :8082
+    2025/04/23 10:57:52 Server starting on port :8081
+    2025/04/23 10:57:52 Server starting on port :8080
+    2025/04/23 12:54:52 Created todo: {ID:13 Task:New task with Mirzakhan Completed:false}
+    ^Csignal: interrupt
+```
+
+5. See externally exposed service ports
+```bash
+kubectl get service todo-api-service
+```
+Output:
+```log
+NAME               TYPE       CLUSTER-IP      EXTERNAL-IP   PORT(S)                                  AGE
+todo-api-service   NodePort   10.104.222.69   <none>        80:31778/TCP,81:32051/TCP,82:32220/TCP   5h43m
+```
+Port 31778 will be used for remote pod, however requests going to port 32220 will be routed (intercepted) to local instance
+
+6. Send request to remote instance for todo creation
+![Remote insert](images/post_request_to_remote.png)
+
+7. Send the same request to local instance
+![Local insert](images/post_request_to_local.png)
+
+8. Fetch todo entries from either local or remote service
+![Todo inserts](images/todo_inserts.png)
+
+9. Check in Postgres DB
+![DB entries](images/db_entries.png)
+
+10. Stop interception
+```bash
+telepresence leave todo-api
+```
 
 ## Service Ports
 
